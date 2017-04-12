@@ -1,6 +1,6 @@
 {
   "name": "plump-store-postgres",
-  "version": "0.11.0",
+  "version": "0.12.0",
   "description": "Postgres adapter for Plump",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -37,12 +37,12 @@
     "gulp-typescript": "^3.1.6",
     "mocha": "^3.2.0",
     "ts-node": "^3.0.2",
-    "tslint": "^5.0.0",
-    "tslint-eslint-rules": "^3.5.1",
+    "tslint": "^5.1.0",
+    "tslint-eslint-rules": "^4.0.0",
     "typescript": "^2.2.2"
   },
   "peerDependencies": {
-    "plump": "kstf/plump#master"
+    "plump": "^0.12.0"
   },
   "dependencies": {
     "knex": "^0.12.9",
