@@ -147,24 +147,16 @@ describe('postgres-specific behaviors', () => {
       .then(() => store.writeRelationshipItem(createdObject, 'queryChildren', { id: 102, meta: { perm: 2 } }))
       .then(() => store.writeRelationshipItem(createdObject, 'queryChildren', { id: 103, meta: { perm: 3 } }))
       .then(() => {
-        const resultObject: IndefiniteModelData = mergeOptions({}, createdObject, {
-          relationships: {
-            queryChildren: [
-              { id: 102, meta: { perm: 2 } },
-              { id: 103, meta: { perm: 3 } },
-            ],
-            queryParents: [],
-            valenceChildren: [
-              { id: 100, meta: { perm: 1 } },
-            ],
-            valenceParents: [],
-            children: [],
-            parents: [],
-          }
-        });
         return store.read(createdObject)
         .then((res) => {
-          return expect(res).to.deep.equal(resultObject);
+          expect(res.relationships.queryChildren).to.deep.include.members(
+            [ { id: 102, meta: { perm: 2 } }, { id: 103, meta: { perm: 3 } } ]
+          );
+          expect(res.relationships.valenceChildren).to.deep.include.members([ { id: 100, meta: { perm: 1 } } ]);
+          expect(res.relationships.children).to.deep.equal([]);
+          expect(res.relationships.parents).to.deep.equal([]);
+          expect(res.relationships.valenceParents).to.deep.equal([]);
+          expect(res.relationships.queryParents).to.deep.equal([]);
         });
       });
     });
@@ -181,15 +173,15 @@ describe('postgres-specific behaviors', () => {
       .then(() => store.writeRelationshipItem(createdObject, 'valenceChildren', { id: 102, meta: { perm: 20 } }))
       .then(() => store.writeRelationshipItem(createdObject, 'valenceChildren', { id: 103, meta: { perm: 30 } }))
       .then(() => store.readRelationship(createdObject, 'relationships.queryChildren'))
-      .then((v) => expect(v.relationships.queryChildren).to.deep.equal(
+      .then((v) => expect(v.relationships.queryChildren).to.deep.include.members(
         [ { id: 102, meta: { perm: 2 } }, { id: 103, meta: { perm: 3 } } ]
       ))
       .then(() => store.readRelationship(createdObject, 'relationships.children'))
-      .then((v) => expect(v.relationships.children).to.deep.equal(
+      .then((v) => expect(v.relationships.children).to.deep.include.members(
         [ { id: 102 }, { id: 103 } ]
       ))
       .then(() => store.readRelationship(createdObject, 'relationships.valenceChildren'))
-      .then((v) => expect(v.relationships.valenceChildren).to.deep.equal(
+      .then((v) => expect(v.relationships.valenceChildren).to.deep.include.members(
         [ { id: 102, meta: { perm: 20 } }, { id: 103, meta: { perm: 30 } } ]
       ));
     });
@@ -216,7 +208,7 @@ describe('postgres-specific behaviors', () => {
       .then((res) => {
         expect(res).to.have.property('included').with.length(4);
         res.included.forEach((i) => {
-          expect(i.relationships.children).to.deep.equal([
+          expect(i.relationships.children).to.deep.include.members([
             { id: i.id * 100 + 1 },
             { id: i.id * 100 + 2 },
             { id: i.id * 100 + 3 },

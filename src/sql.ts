@@ -15,7 +15,7 @@ function rearrangeData(type: ModelSchema, data: any): ModelData {
     retVal.attributes[attrName] = data[attrName];
   }
   for (const relName in type.relationships) {
-    retVal.relationships[relName] = data[relName];
+    retVal.relationships[relName] = data[relName] || [];
   }
   return retVal;
 }

@@ -51,8 +51,8 @@ export const QueryChildrenSchema: RelationshipSchema = {
         queryChildren: 'parent_id',
       },
       joinQuery: {
-        queryParents: 'on "tests"."id" = "queryParents"."child_id" and "queryParents"."perm" >= 2',
-        queryChildren: 'on "tests"."id" = "queryChildren"."parent_id" and "queryChildren"."perm" >= 2',
+        queryParents: '"tests"."id" = "query_children"."child_id" and "query_children"."perm" >= 2',
+        queryChildren: '"tests"."id" = "query_children"."parent_id" and "query_children"."perm" >= 2',
       },
       where: {
         queryParents: '"query_children"."child_id" = ? and "query_children"."perm" >= 2',
