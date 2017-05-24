@@ -126,6 +126,7 @@ describe('postgres-specific behaviors', () => {
     .then(() => {
       store = new PGStore({
         sql: {
+          // debug: true,
           connection: {
             database: 'secondary_plump_test',
             user: 'postgres',

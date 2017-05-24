@@ -51,8 +51,12 @@ export const QueryChildrenSchema: RelationshipSchema = {
         queryChildren: 'parent_id',
       },
       joinQuery: {
-        queryParents: '"tests"."id" = "query_children"."child_id" and "query_children"."perm" >= 2',
-        queryChildren: '"tests"."id" = "query_children"."parent_id" and "query_children"."perm" >= 2',
+        queryParents: `select array_agg(
+          jsonb_build_object('id', "query_children"."parent_id", 'meta', json_build_object('perm', "query_children"."perm"))
+        ) from "query_children" where "tests"."id" = "query_children"."child_id" and "query_children"."perm" >= 2`,
+        queryChildren: `select array_agg(
+          jsonb_build_object('id', "query_children"."child_id", 'meta', json_build_object('perm', "query_children"."perm"))
+        ) from "query_children" where "tests"."id" = "query_children"."parent_id" and "query_children"."perm" >= 2`,
       },
       where: {
         queryParents: '"query_children"."child_id" = ? and "query_children"."perm" >= 2',
