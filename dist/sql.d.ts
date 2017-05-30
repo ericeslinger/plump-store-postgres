@@ -6,9 +6,9 @@ export declare class PGStore extends Storage implements TerminalStore {
         [opt: string]: any;
     });
     teardown(): any;
-    allocateId(typeName: string): Promise<number>;
+    allocateId(type: string): Promise<number>;
     addSchema(t: {
-        typeName: string;
+        type: string;
         schema: ModelSchema;
     }): Promise<void>;
     writeAttributes(value: IndefiniteModelData): Promise<ModelData>;
