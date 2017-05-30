@@ -3,7 +3,6 @@
 
 import * as pg from 'pg';
 import * as chai from 'chai';
-import * as chaiAsPromised from 'chai-as-promised';
 import * as mergeOptions from 'merge-options';
 
 import { PGStore } from '../src/index';
@@ -12,7 +11,6 @@ import { testSuite } from './storageTests';
 
 import { IndefiniteModelData } from 'plump';
 
-chai.use(chaiAsPromised);
 const expect = chai.expect;
 
 // TestType.$schema.queryChildren.relationship.$sides.queryChildren.self.query.rawJoin =
@@ -108,7 +106,7 @@ testSuite({
 });
 
 const sampleObject: IndefiniteModelData = {
-  typeName: 'tests',
+  type: 'tests',
   attributes: {
     name: 'potato',
     otherName: 'elephantine',
