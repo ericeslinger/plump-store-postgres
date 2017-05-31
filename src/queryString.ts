@@ -1,91 +1,64 @@
 import { ParameterizedQuery } from './semiQuery';
 import { ModelSchema } from 'plump';
 
-function selects(schema: ModelSchema) {
-  const selectArray = [];
-  for (const attrName in schema.attributes) {
-    selectArray.push(`"${schema.storeData.sql.tableName}"."${attrName}"`);
-  }
-  for (const relName in schema.relationships) {
-    const rel = schema.relationships[relName].type;
-    const otherName = rel.sides[relName].otherName;
-    const otherFieldName = rel.storeData.sql.joinFields[otherName];
-    const extraAgg = [];
-    if (rel.extras) {
-      for (const extra in rel.extras) {
-        extraAgg.push(`'${extra}'`, `"${relName}"."${extra}"`);
-      }
-    }
-    const extraString = `, 'meta', jsonb_build_object(${extraAgg.join(', ')})`;
-    selectArray.push(
-      `COALESCE(
-        array_agg(
-          distinct(
-            jsonb_build_object(
-              'id', "${relName}"."${otherFieldName}"
-              ${extraAgg.length ? extraString : ''}
-            )
-          )
-        )
-        FILTER (WHERE "${relName}"."${otherFieldName}" IS NOT NULL),
-        '{}')
-      as "${relName}"`
-    );
-  }
-  return `select ${selectArray.join(', ')}`;
-}
+/*
+(
+  select array_agg(
+    jsonb_build_object('id', profile_permissions.document_id, 'meta', jsonb_build_object('perm', profile_permissions.perm))
+  )
+  from profile_permissions
+  where profile_permissions.profile_id = profiles.id
+) as conversations
+*/
 
-function joins(schema: ModelSchema) {
-  const joinStrings = [];
-  for (const relName in schema.relationships) {
-    const rel = schema.relationships[relName].type;
-    const sqlBlock = rel.storeData.sql;
-    if (sqlBlock.joinQuery) {
-      joinStrings.push(
-        `left outer join ${rel.storeData.sql.tableName} as "${relName}" ${sqlBlock.joinQuery[relName]}`
-      );
-    } else {
-      joinStrings.push(
-        `left outer join ${rel.storeData.sql.tableName} as "${relName}" `
-        + `on "${relName}".${sqlBlock.joinFields[relName]} = ${schema.storeData.sql.tableName}.${schema.idAttribute}`
-      );
-    }
-  }
-  return joinStrings.join('\n');
-}
-
-function singleWhere(schema: ModelSchema) {
-  if (schema.storeData && schema.storeData.sql && schema.storeData.sql.singleQuery) {
-    return schema.storeData.sql.singleQuery;
+function relationFetch(schema: ModelSchema, relName: string) {
+  const rel = schema.relationships[relName].type;
+  const sqlBlock = rel.storeData.sql;
+  const otherName = rel.sides[relName].otherName;
+  if (sqlBlock.joinQuery && sqlBlock.joinQuery[relName]) {
+    return `(${sqlBlock.joinQuery[relName]}) as "${relName}"`;
   } else {
-    return `where ${schema.storeData.sql.tableName}.${schema.idAttribute} = ?`;
+    const extraAgg = Object.keys(rel.extras || {}).map(extra => `'${extra}', "${sqlBlock.tableName}"."${extra}"`);
+    const kv = [
+      `'id'`, `"${sqlBlock.tableName}"."${sqlBlock.joinFields[otherName]}"`
+    ];
+    if (extraAgg.length) {
+      kv.push(`'meta'`, `jsonb_build_object(${extraAgg.join(',')})`);
+    }
+    const where = sqlBlock.joinQuery && sqlBlock.joinQuery[relName]
+    ? sqlBlock.joinQuery[relName]
+    : `"${sqlBlock.tableName}"."${sqlBlock.joinFields[relName]}" = "${schema.storeData.sql.tableName}"."${schema.idAttribute}"`;
+    return `(
+      select array_agg(
+        jsonb_build_object(${kv.join(', ')})
+      )
+      from "${sqlBlock.tableName}"
+      where ${where}
+    ) as "${relName}"`.replace(/\s+/g, ' ');
   }
-}
-
-function bulkWhere(schema: ModelSchema) {
-  if (schema.storeData && schema.storeData.sql && schema.storeData.sql.bulkQuery) {
-    return schema.storeData.sql.bulkQuery;
-  } else if (schema.storeData && schema.storeData.sql && schema.storeData.sql.singleQuery) {
-    return schema.storeData.sql.singleQuery;
-  } else {
-    return `where ${schema.storeData.sql.tableName}.${schema.idAttribute} = ?`;
-  }
-}
-
-function groupBy(schema: ModelSchema) {
-  return `group by ${Object.keys(schema.attributes).map((attrName) => `"${attrName}"`).join(', ')}`;
 }
 
 export function bulkQuery(schema: ModelSchema): ParameterizedQuery {
+  let where = `where ${schema.storeData.sql.tableName}.${schema.idAttribute} = ?`;
+  if (schema.storeData && schema.storeData.sql && schema.storeData.sql.bulkQuery) {
+    where = schema.storeData.sql.bulkQuery;
+  } else if (schema.storeData && schema.storeData.sql && schema.storeData.sql.singleQuery) {
+    where = schema.storeData.sql.singleQuery;
+  }
+  const base = [`"${schema.storeData.sql.tableName}".*`];
+  const sides = Object.keys(schema.relationships).map((k) => relationFetch(schema, k));
   return {
-    queryString: `${selects(schema)} \nfrom ${schema.storeData.sql.tableName} \n${joins(schema)} \n${bulkWhere(schema)} \n${groupBy(schema)};`, // tslint:disable-line max-line-length
-    fields: ['id']
+    queryString: `select ${base.concat(sides).join(', ')} from "${schema.storeData.sql.tableName}" ${where}`.replace(/\s+/g, ' '), // tslint:disable-line max-line-length
+    fields: ['id'],
   };
 }
 
+
 export function readQuery(schema: ModelSchema): ParameterizedQuery {
+  const base = [`"${schema.storeData.sql.tableName}".*`];
+  const sides = Object.keys(schema.relationships).map((k) => relationFetch(schema, k));
   return {
-    queryString: `${selects(schema)} \nfrom ${schema.storeData.sql.tableName} \n${joins(schema)} \n${singleWhere(schema)} \n${groupBy(schema)};`, // tslint:disable-line max-line-length
+    queryString: `select ${base.concat(sides).join(', ')} from "${schema.storeData.sql.tableName}" where "${schema.storeData.sql.tableName}"."${schema.idAttribute}" = ?`, // tslint:disable-line max-line-length
     fields: ['id'],
   };
 }
