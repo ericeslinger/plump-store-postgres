@@ -149,9 +149,9 @@ describe('postgres-specific behaviors', () => {
         return store.read(createdObject)
         .then((res) => {
           expect(res.relationships.queryChildren).to.deep.include.members(
-            [ { id: 102, meta: { perm: 2 } }, { id: 103, meta: { perm: 3 } } ]
+            [ { id: 102, type: TestType.type, meta: { perm: 2 } }, { id: 103, type: TestType.type, meta: { perm: 3 } } ]
           );
-          expect(res.relationships.valenceChildren).to.deep.include.members([ { id: 100, meta: { perm: 1 } } ]);
+          expect(res.relationships.valenceChildren).to.deep.include.members([ { id: 100, type: TestType.type, meta: { perm: 1 } } ]);
           expect(res.relationships.children).to.deep.equal([]);
           expect(res.relationships.parents).to.deep.equal([]);
           expect(res.relationships.valenceParents).to.deep.equal([]);
