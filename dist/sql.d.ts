@@ -1,6 +1,6 @@
 import { Storage, IndefiniteModelData, ModelData, ModelSchema, ModelReference, RelationshipItem, TerminalStore } from 'plump';
 export declare class PGStore extends Storage implements TerminalStore {
-    private knex;
+    knex: any;
     private queryCache;
     constructor(opts?: {
         [opt: string]: any;
