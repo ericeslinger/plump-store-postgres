@@ -1,11 +1,12 @@
+import * as knex from 'knex';
 import { Storage, IndefiniteModelData, ModelData, ModelSchema, ModelReference, RelationshipItem, TerminalStore } from 'plump';
 export declare class PGStore extends Storage implements TerminalStore {
-    knex: any;
+    knex: knex;
     private queryCache;
     constructor(opts?: {
         [opt: string]: any;
     });
-    teardown(): any;
+    teardown(): Promise<void>;
     allocateId(type: string): Promise<number>;
     addSchema(t: {
         type: string;
@@ -13,10 +14,10 @@ export declare class PGStore extends Storage implements TerminalStore {
     }): Promise<void>;
     writeAttributes(value: IndefiniteModelData): Promise<ModelData>;
     readAttributes(value: ModelReference): Promise<ModelData>;
-    bulkRead(item: ModelReference): any;
+    bulkRead(item: ModelReference): Promise<any>;
     readRelationship(value: ModelReference, relRefName: string): Promise<ModelData>;
-    delete(value: ModelReference): any;
-    writeRelationshipItem(value: ModelReference, relName: string, child: RelationshipItem): any;
-    deleteRelationshipItem(value: ModelReference, relName: string, child: RelationshipItem): any;
+    delete(value: ModelReference): Promise<any>;
+    writeRelationshipItem(value: ModelReference, relName: string, child: RelationshipItem): Promise<any>;
+    deleteRelationshipItem(value: ModelReference, relName: string, child: RelationshipItem): Promise<any>;
     query(q: any): Promise<any>;
 }
