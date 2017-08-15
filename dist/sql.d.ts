@@ -19,5 +19,5 @@ export declare class PGStore extends Storage implements TerminalStore {
     delete(value: ModelReference): Promise<any>;
     writeRelationshipItem(value: ModelReference, relName: string, child: RelationshipItem): Promise<any>;
     deleteRelationshipItem(value: ModelReference, relName: string, child: RelationshipItem): Promise<any>;
-    query(q: any): Promise<any>;
+    query(type: string, q: any): Promise<any>;
 }

@@ -167,9 +167,10 @@ export class PGStore extends Storage implements TerminalStore {
     value: ModelReference,
     relRefName: string,
   ): Promise<ModelData> {
-    const relName = relRefName.indexOf('relationships.') === 0
-      ? relRefName.split('.')[1]
-      : relRefName;
+    const relName =
+      relRefName.indexOf('relationships.') === 0
+        ? relRefName.split('.')[1]
+        : relRefName;
     const schema = this.getSchema(value.type);
     const rel = schema.relationships[relName].type;
     const otherRelName = rel.sides[relName].otherName;
@@ -184,9 +185,10 @@ export class PGStore extends Storage implements TerminalStore {
         .join(', ')}) as meta`; // tslint:disable-line max-line-length
     }
 
-    const where = sqlData.where === undefined
-      ? { [sqlData.joinFields[relName]]: value.id }
-      : this.knex.raw(sqlData.where[relName], value.id);
+    const where =
+      sqlData.where === undefined
+        ? { [sqlData.joinFields[relName]]: value.id }
+        : this.knex.raw(sqlData.where[relName], value.id);
 
     return Promise.resolve(
       this.knex(sqlData.tableName)
@@ -293,7 +295,12 @@ export class PGStore extends Storage implements TerminalStore {
     );
   }
 
-  query(q) {
-    return Promise.resolve(this.knex.raw(q.query)).then(d => d.rows);
+  query(type: string, q: any) {
+    return Promise.resolve(
+      this.knex(type)
+        .where(q)
+        .select('id')
+        .then(r => r.map(v => ({ type: type, id: v.id }))),
+    );
   }
 }
