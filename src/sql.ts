@@ -1,4 +1,4 @@
-import * as knex from 'knex';
+import * as Knex from 'knex';
 import {
   Storage,
   IndefiniteModelData,
@@ -29,7 +29,7 @@ function rearrangeData(type: ModelSchema, data: any): ModelData {
 }
 
 export class PGStore extends Storage implements TerminalStore {
-  public knex: any;
+  public knex: Knex;
   private queryCache: {
     [type: string]: {
       attributes: ParameterizedQuery;
@@ -61,7 +61,7 @@ export class PGStore extends Storage implements TerminalStore {
       },
       opts.sql,
     );
-    this.knex = knex(options);
+    this.knex = Knex(options);
   }
 
   /*

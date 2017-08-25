@@ -1,11 +1,12 @@
+import * as Knex from 'knex';
 import { Storage, IndefiniteModelData, ModelData, ModelSchema, ModelReference, RelationshipItem, TerminalStore } from 'plump';
 export declare class PGStore extends Storage implements TerminalStore {
-    knex: any;
+    knex: Knex;
     private queryCache;
     constructor(opts?: {
         [opt: string]: any;
     });
-    teardown(): Promise<any>;
+    teardown(): Promise<void>;
     allocateId(type: string): Promise<number>;
     addSchema(t: {
         type: string;
