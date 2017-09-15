@@ -30,7 +30,7 @@ function rearrangeData(type: ModelSchema, data: any): ModelData {
 
 export class PGStore extends Storage implements TerminalStore {
   public knex: Knex;
-  private queryCache: {
+  public queryCache: {
     [type: string]: {
       attributes: ParameterizedQuery;
       bulkRead: ParameterizedQuery;
