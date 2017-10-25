@@ -59,7 +59,7 @@ export class PGStore extends Storage implements TerminalStore {
           min: 0,
         },
       },
-      opts.sql,
+      opts.sql
     );
     this.knex = Knex(options);
   }
@@ -78,23 +78,25 @@ export class PGStore extends Storage implements TerminalStore {
     return Promise.resolve(
       this.knex
         .raw('select nextval(?::regclass);', `${type}_id_seq`)
-        .then(data => data.rows[0].nextval),
+        .then(data => data.rows[0].nextval)
     );
   }
 
   addSchema(t: { type: string; schema: ModelSchema }) {
     return super.addSchema(t).then(() => {
-      this.queryCache[t.type] = {
-        attributes: readQuery(t.schema),
-        bulkRead: bulkQuery(t.schema),
-        relationships: {},
-      };
-      Object.keys(t.schema.relationships).forEach(relName => {
-        this.queryCache[t.type].relationships[relName] = writeRelationshipQuery(
-          t.schema,
-          relName,
-        );
-      });
+      if (t.schema.storeData && t.schema.storeData.sql) {
+        this.queryCache[t.type] = {
+          attributes: readQuery(t.schema),
+          bulkRead: bulkQuery(t.schema),
+          relationships: {},
+        };
+        Object.keys(t.schema.relationships).forEach(relName => {
+          const rq = writeRelationshipQuery(t.schema, relName);
+          if (!!rq) {
+            this.queryCache[t.type].relationships[relName] = rq;
+          }
+        });
+      }
     });
   }
 
@@ -126,7 +128,7 @@ export class PGStore extends Storage implements TerminalStore {
       })
       .then(result => {
         this.fireWriteUpdate(
-          Object.assign({}, result, { invalidate: ['attributes'] }),
+          Object.assign({}, result, { invalidate: ['attributes'] })
         );
         return result;
       });
@@ -142,7 +144,7 @@ export class PGStore extends Storage implements TerminalStore {
           } else {
             return null;
           }
-        }),
+        })
     );
   }
 
@@ -159,13 +161,13 @@ export class PGStore extends Storage implements TerminalStore {
         } else {
           return null;
         }
-      }),
+      })
     );
   }
 
   readRelationship(
     value: ModelReference,
-    relRefName: string,
+    relRefName: string
   ): Promise<ModelData> {
     const relName =
       relRefName.indexOf('relationships.') === 0
@@ -203,7 +205,7 @@ export class PGStore extends Storage implements TerminalStore {
               [relName]: l,
             },
           };
-        }),
+        })
     );
   }
 
@@ -220,14 +222,14 @@ export class PGStore extends Storage implements TerminalStore {
             invalidate: ['attributes', 'relationships'],
           });
           return o;
-        }),
+        })
     );
   }
 
   writeRelationshipItem(
     value: ModelReference,
     relName: string,
-    child: RelationshipItem,
+    child: RelationshipItem
   ) {
     const subQuery = this.queryCache[value.type].relationships[relName];
     const schema = this.getSchema(value.type);
@@ -244,13 +246,13 @@ export class PGStore extends Storage implements TerminalStore {
             } else {
               return child.meta[f];
             }
-          }),
+          })
         )
         .then(() => {
           this.fireWriteUpdate(
             Object.assign({}, value, {
               invalidate: [`relationships.${relName}`],
-            }),
+            })
           );
           this.fireWriteUpdate({
             id: child.id,
@@ -258,14 +260,14 @@ export class PGStore extends Storage implements TerminalStore {
             invalidate: [`relationships.${childData.otherName}`],
           });
           return null;
-        }),
+        })
     );
   }
 
   deleteRelationshipItem(
     value: ModelReference,
     relName: string,
-    child: RelationshipItem,
+    child: RelationshipItem
   ) {
     const schema = this.getSchema(value.type);
     const rel = schema.relationships[relName].type;
@@ -283,7 +285,7 @@ export class PGStore extends Storage implements TerminalStore {
           this.fireWriteUpdate(
             Object.assign({}, value, {
               invalidate: [`relationships.${relName}`],
-            }),
+            })
           );
           this.fireWriteUpdate({
             id: child.id,
@@ -291,7 +293,7 @@ export class PGStore extends Storage implements TerminalStore {
             invalidate: [`relationships.${childData.otherName}`],
           });
           return null;
-        }),
+        })
     );
   }
 
@@ -300,7 +302,7 @@ export class PGStore extends Storage implements TerminalStore {
       this.knex(type)
         .where(q)
         .select('id')
-        .then(r => r.map(v => ({ type: type, id: v.id }))),
+        .then(r => r.map(v => ({ type: type, id: v.id })))
     );
   }
 }

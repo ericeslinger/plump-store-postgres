@@ -19,7 +19,6 @@ const expect = chai.expect;
 // 'left outer join query_children as queryparents on queryparents.child_id = tests.id and queryparents.perm >= 2';
 //
 
-
 function runSQL(command, opts = {}) {
   const connOptions = Object.assign(
     {},
@@ -30,21 +29,23 @@ function runSQL(command, opts = {}) {
       database: 'postgres',
       charset: 'utf8',
     },
-    opts
+    opts,
   );
   const client = new pg.Client(connOptions);
-  return new Promise((resolve) => {
-    client.connect((err) => {
+  return new Promise(resolve => {
+    client.connect(err => {
       if (err) {
         throw err;
       }
-      client.query(command, (err) => { // tslint:disable-line no-shadowed-variable
-        if (err) {
-          throw err;
+      client.query(command, err2 => {
+        // tslint:disable-line no-shadowed-variable
+        if (err2) {
+          throw err2;
         }
-        client.end((err) => { // tslint:disable-line no-shadowed-variable
-          if (err) {
-            throw err;
+        client.end(err3 => {
+          // tslint:disable-line no-shadowed-variable
+          if (err3) {
+            throw err3;
           }
           resolve();
         });
@@ -55,9 +56,10 @@ function runSQL(command, opts = {}) {
 
 function createDatabase(name) {
   return runSQL(`DROP DATABASE if exists ${name};`)
-  .then(() => runSQL(`CREATE DATABASE ${name};`))
-  .then(() => {
-    return runSQL(`
+    .then(() => runSQL(`CREATE DATABASE ${name};`))
+    .then(() => {
+      return runSQL(
+        `
       CREATE SEQUENCE testid_seq
         START WITH 1
         INCREMENT BY 1
@@ -77,33 +79,44 @@ function createDatabase(name) {
       CREATE UNIQUE INDEX valence_children_join on valence_children (parent_id, child_id);
       CREATE TABLE query_children (parent_id integer not null, child_id integer not null, perm integer not null);
       CREATE UNIQUE INDEX query_children_join on query_children (parent_id, child_id);
-    `, { database: name });
-  });
+      CREATE TABLE "datedTests" (
+        id integer not null primary key DEFAULT nextval('testid_seq'::regclass),
+        name text,
+        "when" timestamptz
+      );
+    `,
+        { database: name },
+      );
+    });
 }
 
-
-testSuite({
-  describe, it, before, after,
-}, {
-  ctor: PGStore,
-  opts: {
-    sql: {
-      connection: {
-        database: 'plump_test',
-        user: 'postgres',
-        host: 'localhost',
-        port: 5432,
+testSuite(
+  {
+    describe,
+    it,
+    before,
+    after,
+  },
+  {
+    ctor: PGStore,
+    opts: {
+      sql: {
+        connection: {
+          database: 'plump_test',
+          user: 'postgres',
+          host: 'localhost',
+          port: 5432,
+        },
       },
+      terminal: true,
     },
-    terminal: true,
+    name: 'Plump Postgres Store',
+    before: () => createDatabase('plump_test'),
+    after: driver => {
+      return driver.teardown().then(() => runSQL('DROP DATABASE plump_test;'));
+    },
   },
-  name: 'Plump Postgres Store',
-  before: () => createDatabase('plump_test'),
-  after: (driver) => {
-    return driver.teardown()
-    .then(() => runSQL('DROP DATABASE plump_test;'));
-  },
-});
+);
 
 const sampleObject: IndefiniteModelData = {
   type: 'tests',
@@ -120,8 +133,7 @@ const sampleObject: IndefiniteModelData = {
 describe('postgres-specific behaviors', () => {
   let store: PGStore;
   before(() => {
-    return createDatabase('secondary_plump_test')
-    .then(() => {
+    return createDatabase('secondary_plump_test').then(() => {
       store = new PGStore({
         sql: {
           // debug: true,
@@ -139,50 +151,130 @@ describe('postgres-specific behaviors', () => {
   });
 
   it('Returns extra contents', () => {
-    return store.writeAttributes(sampleObject)
-    .then((createdObject) => {
-      return store.writeRelationshipItem(createdObject, 'valenceChildren', { id: 100, meta: { perm: 1 } })
-      .then(() => store.writeRelationshipItem(createdObject, 'queryChildren', { id: 101, meta: { perm: 1 } }))
-      .then(() => store.writeRelationshipItem(createdObject, 'queryChildren', { id: 102, meta: { perm: 2 } }))
-      .then(() => store.writeRelationshipItem(createdObject, 'queryChildren', { id: 103, meta: { perm: 3 } }))
-      .then(() => {
-        return store.read(createdObject)
-        .then((res) => {
-          expect(res.relationships.queryChildren).to.deep.include.members(
-            [ { id: 102, type: TestType.type, meta: { perm: 2 } }, { id: 103, type: TestType.type, meta: { perm: 3 } } ]
-          );
-          expect(res.relationships.valenceChildren).to.deep.include.members([ { id: 100, type: TestType.type, meta: { perm: 1 } } ]);
-          expect(res.relationships.children).to.deep.equal([]);
-          expect(res.relationships.parents).to.deep.equal([]);
-          expect(res.relationships.valenceParents).to.deep.equal([]);
-          expect(res.relationships.queryParents).to.deep.equal([]);
+    return store.writeAttributes(sampleObject).then(createdObject => {
+      return store
+        .writeRelationshipItem(createdObject, 'valenceChildren', {
+          id: 100,
+          type: 'tests',
+          meta: { perm: 1 },
+        })
+        .then(() =>
+          store.writeRelationshipItem(createdObject, 'queryChildren', {
+            id: 101,
+            type: 'tests',
+            meta: { perm: 1 },
+          }),
+        )
+        .then(() =>
+          store.writeRelationshipItem(createdObject, 'queryChildren', {
+            id: 102,
+            type: 'tests',
+            meta: { perm: 2 },
+          }),
+        )
+        .then(() =>
+          store.writeRelationshipItem(createdObject, 'queryChildren', {
+            id: 103,
+            type: 'tests',
+            meta: { perm: 3 },
+          }),
+        )
+        .then(() => {
+          return store.read(createdObject).then(res => {
+            expect(res.relationships.queryChildren).to.deep.include.members([
+              { id: 102, type: TestType.type, meta: { perm: 2 } },
+              { id: 103, type: TestType.type, meta: { perm: 3 } },
+            ]);
+            expect(res.relationships.valenceChildren).to.deep.include.members([
+              { id: 100, type: TestType.type, meta: { perm: 1 } },
+            ]);
+            expect(res.relationships.children).to.deep.equal([]);
+            expect(res.relationships.parents).to.deep.equal([]);
+            expect(res.relationships.valenceParents).to.deep.equal([]);
+            expect(res.relationships.queryParents).to.deep.equal([]);
+          });
         });
-      });
     });
   });
 
   it('supports all hasMany relationships', () => {
-    return store.writeAttributes(sampleObject)
-    .then((createdObject) => {
-      return store.writeRelationshipItem(createdObject, 'queryChildren', { id: 101, meta: { perm: 1 } })
-      .then(() => store.writeRelationshipItem(createdObject, 'queryChildren', { id: 102, meta: { perm: 2 } }))
-      .then(() => store.writeRelationshipItem(createdObject, 'queryChildren', { id: 103, meta: { perm: 3 } }))
-      .then(() => store.writeRelationshipItem(createdObject, 'children', { id: 102 }))
-      .then(() => store.writeRelationshipItem(createdObject, 'children', { id: 103 }))
-      .then(() => store.writeRelationshipItem(createdObject, 'valenceChildren', { id: 102, meta: { perm: 20 } }))
-      .then(() => store.writeRelationshipItem(createdObject, 'valenceChildren', { id: 103, meta: { perm: 30 } }))
-      .then(() => store.readRelationship(createdObject, 'relationships.queryChildren'))
-      .then((v) => expect(v.relationships.queryChildren).to.deep.include.members(
-        [ { id: 102, meta: { perm: 2 } }, { id: 103, meta: { perm: 3 } } ]
-      ))
-      .then(() => store.readRelationship(createdObject, 'relationships.children'))
-      .then((v) => expect(v.relationships.children).to.deep.include.members(
-        [ { id: 102 }, { id: 103 } ]
-      ))
-      .then(() => store.readRelationship(createdObject, 'relationships.valenceChildren'))
-      .then((v) => expect(v.relationships.valenceChildren).to.deep.include.members(
-        [ { id: 102, meta: { perm: 20 } }, { id: 103, meta: { perm: 30 } } ]
-      ));
+    return store.writeAttributes(sampleObject).then(createdObject => {
+      return store
+        .writeRelationshipItem(createdObject, 'queryChildren', {
+          id: 101,
+          type: 'tests',
+          meta: { perm: 1 },
+        })
+        .then(() =>
+          store.writeRelationshipItem(createdObject, 'queryChildren', {
+            id: 102,
+            type: 'tests',
+            meta: { perm: 2 },
+          }),
+        )
+        .then(() =>
+          store.writeRelationshipItem(createdObject, 'queryChildren', {
+            id: 103,
+            type: 'tests',
+            meta: { perm: 3 },
+          }),
+        )
+        .then(() =>
+          store.writeRelationshipItem(createdObject, 'children', {
+            id: 102,
+            type: 'tests',
+          }),
+        )
+        .then(() =>
+          store.writeRelationshipItem(createdObject, 'children', {
+            id: 103,
+            type: 'tests',
+          }),
+        )
+        .then(() =>
+          store.writeRelationshipItem(createdObject, 'valenceChildren', {
+            id: 102,
+            type: 'tests',
+            meta: { perm: 20 },
+          }),
+        )
+        .then(() =>
+          store.writeRelationshipItem(createdObject, 'valenceChildren', {
+            id: 103,
+            type: 'tests',
+            meta: { perm: 30 },
+          }),
+        )
+        .then(() =>
+          store.readRelationship(createdObject, 'relationships.queryChildren'),
+        )
+        .then(v =>
+          expect(v.relationships.queryChildren).to.deep.include.members([
+            { id: 102, meta: { perm: 2 } },
+            { id: 103, meta: { perm: 3 } },
+          ]),
+        )
+        .then(() =>
+          store.readRelationship(createdObject, 'relationships.children'),
+        )
+        .then(v =>
+          expect(v.relationships.children).to.deep.include.members([
+            { id: 102 },
+            { id: 103 },
+          ]),
+        )
+        .then(() =>
+          store.readRelationship(
+            createdObject,
+            'relationships.valenceChildren',
+          ),
+        )
+        .then(v =>
+          expect(v.relationships.valenceChildren).to.deep.include.members([
+            { id: 102, meta: { perm: 20 } },
+            { id: 103, meta: { perm: 30 } },
+          ]),
+        );
     });
   });
 
@@ -193,32 +285,45 @@ describe('postgres-specific behaviors', () => {
       store.writeAttributes(sampleObject),
       store.writeAttributes(sampleObject),
       store.writeAttributes(sampleObject),
-    ])
-    .then((created) => {
+    ]).then(created => {
       const createdObject = created[0];
-      return Promise.all(created.map((obj) => {
-        return Promise.all([
-          store.writeRelationshipItem(obj, 'children', { id: (obj.id as number) * 100 + 1 }),
-          store.writeRelationshipItem(obj, 'children', { id: (obj.id as number) * 100 + 2 }),
-          store.writeRelationshipItem(obj, 'children', { id: (obj.id as number) * 100 + 3 }),
-        ]);
-      }))
-      .then(() => store.bulkRead(createdObject))
-      .then((res) => {
-        expect(res).to.have.property('included').with.length(4);
-        res.included.forEach((i) => {
-          expect(i.relationships.children).to.deep.include.members([
-            { id: i.id * 100 + 1 },
-            { id: i.id * 100 + 2 },
-            { id: i.id * 100 + 3 },
+      return Promise.all(
+        created.map(obj => {
+          return Promise.all([
+            store.writeRelationshipItem(obj, 'children', {
+              type: 'tests',
+              id: (obj.id as number) * 100 + 1,
+            }),
+            store.writeRelationshipItem(obj, 'children', {
+              type: 'tests',
+              id: (obj.id as number) * 100 + 2,
+            }),
+            store.writeRelationshipItem(obj, 'children', {
+              type: 'tests',
+              id: (obj.id as number) * 100 + 3,
+            }),
           ]);
+        }),
+      )
+        .then(() => store.bulkRead(createdObject))
+        .then(res => {
+          expect(res)
+            .to.have.property('included')
+            .with.length(4);
+          res.included.forEach(i => {
+            expect(i.relationships.children).to.deep.include.members([
+              { id: i.id * 100 + 1 },
+              { id: i.id * 100 + 2 },
+              { id: i.id * 100 + 3 },
+            ]);
+          });
         });
-      });
     });
   });
 
   after(() => {
-    return store.teardown()
-    .then(() => runSQL('DROP DATABASE secondary_plump_test;'));
+    return store
+      .teardown()
+      .then(() => runSQL('DROP DATABASE secondary_plump_test;'));
   });
 });
