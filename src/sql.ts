@@ -12,22 +12,6 @@ import { readQuery, bulkQuery } from './queryString';
 import { ParameterizedQuery } from './semiQuery';
 import { writeRelationshipQuery } from './writeRelationshipQuery';
 
-function rearrangeData(type: ModelSchema, data: any): ModelData {
-  const retVal: ModelData = {
-    type: type.name,
-    attributes: {},
-    relationships: {},
-    id: data[type.idAttribute],
-  };
-  for (const attrName in type.attributes) {
-    retVal.attributes[attrName] = data[attrName];
-  }
-  for (const relName in type.relationships) {
-    retVal.relationships[relName] = data[relName] || [];
-  }
-  return retVal;
-}
-
 export class PGStore extends Storage implements TerminalStore {
   public knex: Knex;
   public queryCache: {
@@ -59,7 +43,7 @@ export class PGStore extends Storage implements TerminalStore {
           min: 0,
         },
       },
-      opts.sql
+      opts.sql,
     );
     this.knex = Knex(options);
   }
@@ -78,7 +62,7 @@ export class PGStore extends Storage implements TerminalStore {
     return Promise.resolve(
       this.knex
         .raw('select nextval(?::regclass);', `${type}_id_seq`)
-        .then(data => data.rows[0].nextval)
+        .then(data => data.rows[0].nextval),
     );
   }
 
@@ -99,7 +83,21 @@ export class PGStore extends Storage implements TerminalStore {
       }
     });
   }
-
+  rearrangeData(type: ModelSchema, data: any): ModelData {
+    const retVal: ModelData = {
+      type: type.name,
+      attributes: {},
+      relationships: {},
+      id: data[type.idAttribute],
+    };
+    for (const attrName in type.attributes) {
+      retVal.attributes[attrName] = data[attrName];
+    }
+    for (const relName in type.relationships) {
+      retVal.relationships[relName] = data[relName] || [];
+    }
+    return retVal;
+  }
   writeAttributes(value: IndefiniteModelData): Promise<ModelData> {
     const updateObject = this.validateInput(value);
     const typeInfo = this.getSchema(value.type);
@@ -128,7 +126,7 @@ export class PGStore extends Storage implements TerminalStore {
       })
       .then(result => {
         this.fireWriteUpdate(
-          Object.assign({}, result, { invalidate: ['attributes'] })
+          Object.assign({}, result, { invalidate: ['attributes'] }),
         );
         return result;
       });
@@ -140,11 +138,11 @@ export class PGStore extends Storage implements TerminalStore {
         .raw(this.queryCache[value.type].attributes.queryString, value.id)
         .then(o => {
           if (o.rows[0]) {
-            return rearrangeData(this.getSchema(value.type), o.rows[0]);
+            return this.rearrangeData(this.getSchema(value.type), o.rows[0]);
           } else {
             return null;
           }
-        })
+        }),
     );
   }
 
@@ -154,20 +152,22 @@ export class PGStore extends Storage implements TerminalStore {
     return Promise.resolve(
       this.knex.raw(query.queryString, item.id).then(o => {
         if (o.rows[0]) {
-          const arrangedArray = o.rows.map(row => rearrangeData(schema, row));
+          const arrangedArray = o.rows.map(row =>
+            this.rearrangeData(schema, row),
+          );
           const rootItem = arrangedArray.filter(it => it.id === item.id)[0];
           rootItem.included = arrangedArray.filter(it => it.id !== item.id);
           return rootItem;
         } else {
           return null;
         }
-      })
+      }),
     );
   }
 
   readRelationship(
     value: ModelReference,
-    relRefName: string
+    relRefName: string,
   ): Promise<ModelData> {
     const relName =
       relRefName.indexOf('relationships.') === 0
@@ -177,9 +177,9 @@ export class PGStore extends Storage implements TerminalStore {
     const rel = schema.relationships[relName].type;
     const otherRelName = rel.sides[relName].otherName;
     const sqlData = rel.storeData.sql;
-    const selectBase = `"${sqlData.tableName}"."${sqlData.joinFields[
-      otherRelName
-    ]}" as id`;
+    const selectBase = `"${sqlData.tableName}"."${
+      sqlData.joinFields[otherRelName]
+    }" as id`;
     let selectExtras = '';
     if (rel.extras) {
       selectExtras = `, jsonb_build_object(${Object.keys(rel.extras)
@@ -205,7 +205,7 @@ export class PGStore extends Storage implements TerminalStore {
               [relName]: l,
             },
           };
-        })
+        }),
     );
   }
 
@@ -222,14 +222,14 @@ export class PGStore extends Storage implements TerminalStore {
             invalidate: ['attributes', 'relationships'],
           });
           return o;
-        })
+        }),
     );
   }
 
   writeRelationshipItem(
     value: ModelReference,
     relName: string,
-    child: RelationshipItem
+    child: RelationshipItem,
   ) {
     const subQuery = this.queryCache[value.type].relationships[relName];
     const schema = this.getSchema(value.type);
@@ -246,13 +246,13 @@ export class PGStore extends Storage implements TerminalStore {
             } else {
               return child.meta[f];
             }
-          })
+          }),
         )
         .then(() => {
           this.fireWriteUpdate(
             Object.assign({}, value, {
               invalidate: [`relationships.${relName}`],
-            })
+            }),
           );
           this.fireWriteUpdate({
             id: child.id,
@@ -260,14 +260,14 @@ export class PGStore extends Storage implements TerminalStore {
             invalidate: [`relationships.${childData.otherName}`],
           });
           return null;
-        })
+        }),
     );
   }
 
   deleteRelationshipItem(
     value: ModelReference,
     relName: string,
-    child: RelationshipItem
+    child: RelationshipItem,
   ) {
     const schema = this.getSchema(value.type);
     const rel = schema.relationships[relName].type;
@@ -285,7 +285,7 @@ export class PGStore extends Storage implements TerminalStore {
           this.fireWriteUpdate(
             Object.assign({}, value, {
               invalidate: [`relationships.${relName}`],
-            })
+            }),
           );
           this.fireWriteUpdate({
             id: child.id,
@@ -293,7 +293,7 @@ export class PGStore extends Storage implements TerminalStore {
             invalidate: [`relationships.${childData.otherName}`],
           });
           return null;
-        })
+        }),
     );
   }
 
@@ -302,7 +302,7 @@ export class PGStore extends Storage implements TerminalStore {
       this.knex(type)
         .where(q)
         .select('id')
-        .then(r => r.map(v => ({ type: type, id: v.id })))
+        .then(r => r.map(v => ({ type: type, id: v.id }))),
     );
   }
 }

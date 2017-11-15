@@ -11,12 +11,7 @@
     "type": "git",
     "url": "git+https://github.com/kstf/plump-store-postgres.git"
   },
-  "keywords": [
-    "typescript",
-    "orm",
-    "datastore",
-    "activerecord"
-  ],
+  "keywords": ["typescript", "orm", "datastore", "activerecord"],
   "author": "Eric Eslinger <eric.eslinger@gmail.com>",
   "license": "MIT",
   "bugs": {
@@ -26,7 +21,7 @@
   "devDependencies": {
     "@types/chai": "^4.0.0",
     "@types/core-js": "^0.9.41",
-    "@types/knex": "0.0.61",
+    "@types/knex": "0.0.64",
     "@types/mocha": "^2.2.41",
     "@types/node": "^8.0.1",
     "chai": "^4.0.0",
@@ -36,7 +31,7 @@
     "gulp-typescript": "^3.1.7",
     "merge-options": "1.0.0",
     "mocha": "^3.4.2",
-    "plump": "^0.20.0",
+    "plump": "^0.20.2",
     "rxjs": "^5.0.0",
     "ts-node": "^3.0.4",
     "tslint": "^5.3.2",

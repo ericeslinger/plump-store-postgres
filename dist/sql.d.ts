@@ -21,6 +21,7 @@ export declare class PGStore extends Storage implements TerminalStore {
         type: string;
         schema: ModelSchema;
     }): Promise<void>;
+    rearrangeData(type: ModelSchema, data: any): ModelData;
     writeAttributes(value: IndefiniteModelData): Promise<ModelData>;
     readAttributes(value: ModelReference): Promise<ModelData>;
     bulkRead(item: ModelReference): Promise<any>;
