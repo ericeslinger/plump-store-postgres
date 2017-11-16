@@ -10,7 +10,7 @@ import {
   Schema,
   TerminalStore,
 } from 'plump';
-import * as mergeOptions from 'merge-options';
+import mergeOptions from 'merge-options';
 
 import * as chai from 'chai';
 
