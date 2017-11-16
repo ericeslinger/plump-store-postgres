@@ -4,11 +4,12 @@ import {
   IndefiniteModelData,
   ModelData,
   ModelSchema,
+  StorageReadRequest,
   ModelReference,
   RelationshipItem,
   TerminalStore,
 } from 'plump';
-import { readQuery, bulkQuery } from './queryString';
+// import { readQuery, bulkQuery } from './queryString';
 import { ParameterizedQuery } from './semiQuery';
 import { writeRelationshipQuery } from './writeRelationshipQuery';
 
@@ -16,8 +17,6 @@ export class PGStore extends Storage implements TerminalStore {
   public knex: Knex;
   public queryCache: {
     [type: string]: {
-      attributes: ParameterizedQuery;
-      bulkRead: ParameterizedQuery;
       relationships: {
         [relName: string]: ParameterizedQuery;
       };
@@ -70,8 +69,6 @@ export class PGStore extends Storage implements TerminalStore {
     return super.addSchema(t).then(() => {
       if (t.schema.storeData && t.schema.storeData.sql) {
         this.queryCache[t.type] = {
-          attributes: readQuery(t.schema),
-          bulkRead: bulkQuery(t.schema),
           relationships: {},
         };
         Object.keys(t.schema.relationships).forEach(relName => {
@@ -83,18 +80,21 @@ export class PGStore extends Storage implements TerminalStore {
       }
     });
   }
-  rearrangeData(type: ModelSchema, data: any): ModelData {
+  rearrangeData(req: StorageReadRequest, data: any): ModelData {
+    const schema = this.getSchema(req.item.type);
     const retVal: ModelData = {
-      type: type.name,
+      type: req.item.type,
       attributes: {},
       relationships: {},
-      id: data[type.idAttribute],
+      id: data[schema.idAttribute],
     };
-    for (const attrName in type.attributes) {
+    for (const attrName in schema.attributes) {
       retVal.attributes[attrName] = data[attrName];
     }
-    for (const relName in type.relationships) {
-      retVal.relationships[relName] = data[relName] || [];
+    if (schema.storeData.sql.views[req.view || 'default'].contains) {
+      schema.storeData.sql.views[req.view || 'default'].contains.forEach(
+        relName => (retVal.relationships[relName] = data[relName] || []),
+      );
     }
     return retVal;
   }
@@ -104,11 +104,14 @@ export class PGStore extends Storage implements TerminalStore {
     return Promise.resolve()
       .then(() => {
         if (updateObject.id === undefined && this.terminal) {
-          return this.knex(typeInfo.storeData.sql.tableName)
+          return this.knex(typeInfo.storeData.sql.views.default.name)
             .insert(updateObject.attributes)
             .returning(typeInfo.idAttribute)
             .then(createdId => {
-              return this.readAttributes({ type: value.type, id: createdId });
+              return this.readAttributes({
+                item: { type: value.type, id: createdId[0] },
+                fields: ['attributes'],
+              });
             });
         } else if (updateObject.id !== undefined) {
           return this.knex(updateObject.type)
@@ -116,8 +119,11 @@ export class PGStore extends Storage implements TerminalStore {
             .update(updateObject.attributes)
             .then(() => {
               return this.readAttributes({
-                type: value.type,
-                id: updateObject.id,
+                item: {
+                  type: value.type,
+                  id: updateObject.id,
+                },
+                fields: ['attributes'],
               });
             });
         } else {
@@ -132,13 +138,16 @@ export class PGStore extends Storage implements TerminalStore {
       });
   }
 
-  readAttributes(value: ModelReference): Promise<ModelData> {
+  readAttributes(req: StorageReadRequest): Promise<ModelData> {
+    const schema = this.getSchema(req.item.type);
+    const view = schema.storeData.sql.views[req.view || 'default'];
     return Promise.resolve(
-      this.knex
-        .raw(this.queryCache[value.type].attributes.queryString, value.id)
+      this.knex(view.name)
+        .where({ [schema.idAttribute]: req.item.id })
+        .select()
         .then(o => {
-          if (o.rows[0]) {
-            return this.rearrangeData(this.getSchema(value.type), o.rows[0]);
+          if (o[0]) {
+            return this.rearrangeData(req, o[0]);
           } else {
             return null;
           }
@@ -146,34 +155,10 @@ export class PGStore extends Storage implements TerminalStore {
     );
   }
 
-  bulkRead(item: ModelReference) {
-    const schema = this.getSchema(item.type);
-    const query = this.queryCache[item.type].bulkRead;
-    return Promise.resolve(
-      this.knex.raw(query.queryString, item.id).then(o => {
-        if (o.rows[0]) {
-          const arrangedArray = o.rows.map(row =>
-            this.rearrangeData(schema, row),
-          );
-          const rootItem = arrangedArray.filter(it => it.id === item.id)[0];
-          rootItem.included = arrangedArray.filter(it => it.id !== item.id);
-          return rootItem;
-        } else {
-          return null;
-        }
-      }),
-    );
-  }
-
-  readRelationship(
-    value: ModelReference,
-    relRefName: string,
-  ): Promise<ModelData> {
+  readRelationship(req: StorageReadRequest): Promise<ModelData> {
     const relName =
-      relRefName.indexOf('relationships.') === 0
-        ? relRefName.split('.')[1]
-        : relRefName;
-    const schema = this.getSchema(value.type);
+      req.rel.indexOf('relationships.') === 0 ? req.rel.split('.')[1] : req.rel;
+    const schema = this.getSchema(req.item.type);
     const rel = schema.relationships[relName].type;
     const otherRelName = rel.sides[relName].otherName;
     const sqlData = rel.storeData.sql;
@@ -187,20 +172,15 @@ export class PGStore extends Storage implements TerminalStore {
         .join(', ')}) as meta`; // tslint:disable-line max-line-length
     }
 
-    const where =
-      sqlData.where === undefined
-        ? { [sqlData.joinFields[relName]]: value.id }
-        : this.knex.raw(sqlData.where[relName], value.id);
-
     return Promise.resolve(
       this.knex(sqlData.tableName)
         .as(relName)
-        .where(where)
+        .where({ [sqlData.joinFields[req.rel]]: req.item.id })
         .select(this.knex.raw(`${selectBase}${selectExtras}`))
         .then(l => {
           return {
-            type: value.type,
-            id: value.id,
+            type: req.item.type,
+            id: req.item.id,
             relationships: {
               [relName]: l,
             },
@@ -212,7 +192,7 @@ export class PGStore extends Storage implements TerminalStore {
   delete(value: ModelReference) {
     const schema = this.getSchema(value.type);
     return Promise.resolve(
-      this.knex(schema.storeData.sql.tableName)
+      this.knex(schema.storeData.sql.views.default.name)
         .where({ [schema.idAttribute]: value.id })
         .delete()
         .then(o => {

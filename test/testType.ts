@@ -1,4 +1,11 @@
-import { ModelSchema, RelationshipSchema, Model, ModelData, Schema } from 'plump';
+import {
+  ModelSchema,
+  RelationshipSchema,
+  Model,
+  ModelData,
+  Schema,
+  RelationshipItem,
+} from 'plump';
 
 export const ChildrenSchema: RelationshipSchema = {
   sides: {
@@ -13,7 +20,7 @@ export const ChildrenSchema: RelationshipSchema = {
         children: 'parent_id',
       },
     },
-  }
+  },
 };
 
 export const ValenceChildrenSchema: RelationshipSchema = {
@@ -27,40 +34,6 @@ export const ValenceChildrenSchema: RelationshipSchema = {
       joinFields: {
         valenceParents: 'child_id',
         valenceChildren: 'parent_id',
-      },
-    },
-  },
-  extras: {
-    perm: {
-      type: 'number',
-    },
-  },
-};
-
-export const QueryChildrenSchema: RelationshipSchema = {
-
-  sides: {
-    queryParents: { otherType: 'tests', otherName: 'queryChildren' },
-    queryChildren: { otherType: 'tests', otherName: 'queryParents' },
-  },
-  storeData: {
-    sql: {
-      tableName: 'query_children',
-      joinFields: {
-        queryParents: 'child_id',
-        queryChildren: 'parent_id',
-      },
-      joinQuery: {
-        queryParents: `select array_agg(
-          jsonb_build_object('id', "query_children"."parent_id", 'meta', json_build_object('perm', "query_children"."perm"))
-        ) from "query_children" where "tests"."id" = "query_children"."child_id" and "query_children"."perm" >= 2`,
-        queryChildren: `select array_agg(
-          jsonb_build_object('id', "query_children"."child_id", 'meta', json_build_object('perm', "query_children"."perm"))
-        ) from "query_children" where "tests"."id" = "query_children"."parent_id" and "query_children"."perm" >= 2`,
-      },
-      where: {
-        queryParents: '"query_children"."child_id" = ? and "query_children"."perm" >= 2',
-        queryChildren: '"query_children"."parent_id" = ? and "query_children"."perm" >= 2',
       },
     },
   },
@@ -85,17 +58,49 @@ export const TestSchema: ModelSchema = {
     parents: { type: ChildrenSchema },
     valenceChildren: { type: ValenceChildrenSchema },
     valenceParents: { type: ValenceChildrenSchema },
-    queryChildren: { type: QueryChildrenSchema, readOnly: true },
-    queryParents: { type: QueryChildrenSchema, readOnly: true },
   },
   storeData: {
     sql: {
-      tableName: 'tests',
-      bulkQuery: 'where "tests"."id" >= ?',
+      views: {
+        default: { name: 'tests' },
+        full: {
+          name: 'view_tests_full',
+          contains: [
+            'parents',
+            'children',
+            'valenceParents',
+            'valenceChildren',
+          ],
+        },
+      },
     },
-  }
+  },
 };
 
+export interface PermRelationshipItem extends RelationshipItem {
+  meta: {
+    perm: number;
+  };
+}
+
+export interface TestData extends ModelData {
+  type: 'tests';
+  id: number;
+  attributes?: {
+    id: number;
+    name: string;
+    otherName: string;
+    extended: { [key: string]: any };
+  };
+  relationships?: {
+    children: RelationshipItem[];
+    parents: RelationshipItem[];
+    valenceChildren: PermRelationshipItem[];
+    valenceParents: PermRelationshipItem[];
+  };
+}
+
 @Schema(TestSchema)
-export class TestType extends Model<ModelData> {
+export class TestType extends Model<TestData> {
+  static type = 'tests';
 }
