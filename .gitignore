@@ -13,6 +13,8 @@ lib-cov
 
 # Coverage directory used by tools like istanbul
 coverage
+# interim test build so we can ditch ts-node
+testbuild
 
 # nyc test coverage
 .nyc_output

@@ -1,28 +1,32 @@
 {
   "name": "plump-store-postgres",
-  "version": "0.25.0",
+  "version": "0.25.1",
   "description": "Postgres adapter for Plump",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "test":
-      "TS_NODE_COMPILER_OPTIONS='{\"module\":\"commonjs\"}' mocha  --compilers ts:ts-node/register test/*.spec.ts"
+    "test": "gulp maketest && mocha testbuild/*.spec.js && gulp testclean"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/kstf/plump-store-postgres.git"
+    "url": "git+https://github.com/plumpstack/plump-store-postgres.git"
   },
-  "keywords": ["typescript", "orm", "datastore", "activerecord"],
+  "keywords": [
+    "typescript",
+    "orm",
+    "datastore",
+    "activerecord"
+  ],
   "author": "Eric Eslinger <eric.eslinger@gmail.com>",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/kstf/plump-store-postgres/issues"
+    "url": "https://github.com/plumpstack/plump-store-postgres/issues"
   },
-  "homepage": "https://github.com/kstf/plump-store-postgres#readme",
+  "homepage": "https://github.com/plumpstack/plump-store-postgres#readme",
   "devDependencies": {
     "@types/chai": "^4.0.0",
     "@types/core-js": "^0.9.41",
-    "@types/knex": "0.0.64",
+    "@types/knex": "0.0.65",
     "@types/mocha": "^2.2.41",
     "@types/node": "^8.0.1",
     "babel-core": "^6.26.0",
@@ -34,9 +38,8 @@
     "gulp-sourcemaps": "^2.6.0",
     "gulp-typescript": "^3.1.7",
     "mocha": "^3.4.2",
-    "plump": "0.25.0",
+    "plump": "0.25.1",
     "rxjs": "^5.0.0",
-    "ts-node": "^3.0.4",
     "tslint": "^5.3.2",
     "tslint-eslint-rules": "^4.1.1",
     "typescript": "2.5.2"

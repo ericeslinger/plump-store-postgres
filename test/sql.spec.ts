@@ -3,9 +3,9 @@
 
 import * as pg from 'pg';
 import * as chai from 'chai';
-import * as mergeOptions from 'merge-options';
+import mergeOptions from 'merge-options';
 
-import { PGStore } from '../src/index';
+import { PGStore } from '../dist/index';
 import { TestType } from './testType';
 import { testSuite } from './storageTests';
 
