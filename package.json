@@ -11,7 +11,12 @@
     "type": "git",
     "url": "git+https://github.com/plumpstack/plump-store-postgres.git"
   },
-  "keywords": ["typescript", "orm", "datastore", "activerecord"],
+  "keywords": [
+    "typescript",
+    "orm",
+    "datastore",
+    "activerecord"
+  ],
   "author": "Eric Eslinger <eric.eslinger@gmail.com>",
   "license": "MIT",
   "bugs": {
