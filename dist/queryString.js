@@ -1,68 +1,80 @@
+// import { ParameterizedQuery } from './semiQuery';
+// import { ModelSchema } from 'plump';
+//
+// function relationFetch(schema: ModelSchema, relName: string) {
+//   const rel = schema.relationships[relName].type;
+//   if (rel.storeData && rel.storeData.sql) {
+//     const sqlBlock = rel.storeData.sql;
+//     const otherName = rel.sides[relName].otherName;
+//     if (sqlBlock.joinQuery && sqlBlock.joinQuery[relName]) {
+//       return `(${sqlBlock.joinQuery[relName]}) as "${relName}"`;
+//     } else {
+//       const extraAgg = Object.keys(rel.extras || {}).map(
+//         extra => `'${extra}', "${sqlBlock.tableName}"."${extra}"`
+//       );
+//       const kv = [
+//         `'id'`,
+//         `"${sqlBlock.tableName}"."${sqlBlock.joinFields[otherName]}"`,
+//       ];
+//       if (extraAgg.length) {
+//         kv.push(`'meta'`, `jsonb_build_object(${extraAgg.join(',')})`);
+//       }
+//       const where =
+//         sqlBlock.joinQuery && sqlBlock.joinQuery[relName]
+//           ? sqlBlock.joinQuery[relName]
+//           : `"${sqlBlock.tableName}"."${sqlBlock.joinFields[
+//               relName
+//             ]}" = "${schema.storeData.sql.tableName}"."${schema.idAttribute}"`;
+//       return `(
+//           select array_agg(
+//             jsonb_build_object(${kv.join(', ')})
+//           )
+//           from "${sqlBlock.tableName}"
+//           where ${where}
+//         ) as "${relName}"`.replace(/\s+/g, ' ');
+//     }
+//   } else {
+//     return null;
+//   }
+// }
+//
+// export function bulkQuery(schema: ModelSchema): ParameterizedQuery {
+//   let where = `where ${schema.storeData.sql
+//     .tableName}.${schema.idAttribute} = ?`;
+//   if (
+//     schema.storeData &&
+//     schema.storeData.sql &&
+//     schema.storeData.sql.bulkQuery
+//   ) {
+//     where = schema.storeData.sql.bulkQuery;
+//   } else if (
+//     schema.storeData &&
+//     schema.storeData.sql &&
+//     schema.storeData.sql.singleQuery
+//   ) {
+//     where = schema.storeData.sql.singleQuery;
+//   }
+//   const base = [`"${schema.storeData.sql.tableName}".*`];
+//   const sides = Object.keys(schema.relationships)
+//     .map(k => relationFetch(schema, k))
+//     .filter(v => !!v);
+//   return {
+//     queryString: `select ${base.concat(sides).join(', ')} from "${schema
+//       .storeData.sql.tableName}" ${where}`.replace(/\s+/g, ' '), // tslint:disable-line max-line-length
+//     fields: ['id'],
+//   };
+// }
+//
+// export function readQuery(schema: ModelSchema): ParameterizedQuery {
+//   const base = [`"${schema.storeData.sql.tableName}".*`];
+//   const sides = Object.keys(schema.relationships)
+//     .map(k => relationFetch(schema, k))
+//     .filter(v => !!v);
+//   return {
+//     queryString: `select ${base.concat(sides).join(', ')} from "${schema
+//       .storeData.sql.tableName}" where "${schema.storeData.sql
+//       .tableName}"."${schema.idAttribute}" = ?`, // tslint:disable-line max-line-length
+//     fields: ['id'],
+//   };
+// }
 "use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-function relationFetch(schema, relName) {
-    var rel = schema.relationships[relName].type;
-    if (rel.storeData && rel.storeData.sql) {
-        var sqlBlock_1 = rel.storeData.sql;
-        var otherName = rel.sides[relName].otherName;
-        if (sqlBlock_1.joinQuery && sqlBlock_1.joinQuery[relName]) {
-            return "(" + sqlBlock_1.joinQuery[relName] + ") as \"" + relName + "\"";
-        }
-        else {
-            var extraAgg = Object.keys(rel.extras || {}).map(function (extra) { return "'" + extra + "', \"" + sqlBlock_1.tableName + "\".\"" + extra + "\""; });
-            var kv = [
-                "'id'",
-                "\"" + sqlBlock_1.tableName + "\".\"" + sqlBlock_1.joinFields[otherName] + "\"",
-            ];
-            if (extraAgg.length) {
-                kv.push("'meta'", "jsonb_build_object(" + extraAgg.join(',') + ")");
-            }
-            var where = sqlBlock_1.joinQuery && sqlBlock_1.joinQuery[relName]
-                ? sqlBlock_1.joinQuery[relName]
-                : "\"" + sqlBlock_1.tableName + "\".\"" + sqlBlock_1.joinFields[relName] + "\" = \"" + schema.storeData.sql.tableName + "\".\"" + schema.idAttribute + "\"";
-            return ("(\n          select array_agg(\n            jsonb_build_object(" + kv.join(', ') + ")\n          )\n          from \"" + sqlBlock_1.tableName + "\"\n          where " + where + "\n        ) as \"" + relName + "\"").replace(/\s+/g, ' ');
-        }
-    }
-    else {
-        return null;
-    }
-}
-function bulkQuery(schema) {
-    var where = "where " + schema.storeData.sql
-        .tableName + "." + schema.idAttribute + " = ?";
-    if (schema.storeData &&
-        schema.storeData.sql &&
-        schema.storeData.sql.bulkQuery) {
-        where = schema.storeData.sql.bulkQuery;
-    }
-    else if (schema.storeData &&
-        schema.storeData.sql &&
-        schema.storeData.sql.singleQuery) {
-        where = schema.storeData.sql.singleQuery;
-    }
-    var base = ["\"" + schema.storeData.sql.tableName + "\".*"];
-    var sides = Object.keys(schema.relationships)
-        .map(function (k) { return relationFetch(schema, k); })
-        .filter(function (v) { return !!v; });
-    return {
-        queryString: ("select " + base.concat(sides).join(', ') + " from \"" + schema
-            .storeData.sql.tableName + "\" " + where).replace(/\s+/g, ' '),
-        fields: ['id'],
-    };
-}
-exports.bulkQuery = bulkQuery;
-function readQuery(schema) {
-    var base = ["\"" + schema.storeData.sql.tableName + "\".*"];
-    var sides = Object.keys(schema.relationships)
-        .map(function (k) { return relationFetch(schema, k); })
-        .filter(function (v) { return !!v; });
-    return {
-        queryString: "select " + base.concat(sides).join(', ') + " from \"" + schema
-            .storeData.sql.tableName + "\" where \"" + schema.storeData.sql
-            .tableName + "\".\"" + schema.idAttribute + "\" = ?",
-        fields: ['id'],
-    };
-}
-exports.readQuery = readQuery;
-
-//# sourceMappingURL=data:application/json;charset=utf8;base64,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SSxPQUFBLGFBQWEsQ0FBQyxNQUFNLEVBQUUsQ0FBQyxDQUFDLEVBQXhCLENBQXdCLENBQUM7U0FDbEMsTUFBTSxDQUFDLFVBQUEsQ0FBQyxJQUFJLE9BQUEsQ0FBQyxDQUFDLENBQUMsRUFBSCxDQUFHLENBQUMsQ0FBQztJQUNwQixNQUFNLENBQUM7UUFDTCxXQUFXLEVBQUUsWUFBVSxJQUFJLENBQUMsTUFBTSxDQUFDLEtBQUssQ0FBQyxDQUFDLElBQUksQ0FBQyxJQUFJLENBQUMsZ0JBQVUsTUFBTTthQUNqRSxTQUFTLENBQUMsR0FBRyxDQUFDLFNBQVMsbUJBQVksTUFBTSxDQUFDLFNBQVMsQ0FBQyxHQUFHO2FBQ3ZELFNBQVMsYUFBTSxNQUFNLENBQUMsV0FBVyxXQUFPO1FBQzNDLE1BQU0sRUFBRSxDQUFDLElBQUksQ0FBQztLQUNmLENBQUM7QUFDSixDQUFDO0FBWEQsOEJBV0MiLCJmaWxlIjoicXVlcnlTdHJpbmcuanMiLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgeyBQYXJhbWV0ZXJpemVkUXVlcnkgfSBmcm9tICcuL3NlbWlRdWVyeSc7XG5pbXBvcnQgeyBNb2RlbFNjaGVtYSB9IGZyb20gJ3BsdW1wJztcblxuZnVuY3Rpb24gcmVsYXRpb25GZXRjaChzY2hlbWE6IE1vZGVsU2NoZW1hLCByZWxOYW1lOiBzdHJpbmcpIHtcbiAgY29uc3QgcmVsID0gc2NoZW1hLnJlbGF0aW9uc2hpcHNbcmVsTmFtZV0udHlwZTtcbiAgaWYgKHJlbC5zdG9yZURhdGEgJiYgcmVsLnN0b3JlRGF0YS5zcWwpIHtcbiAgICBjb25zdCBzcWxCbG9jayA9IHJlbC5zdG9yZURhdGEuc3FsO1xuICAgIGNvbnN0IG90aGVyTmFtZSA9IHJlbC5zaWRlc1tyZWxOYW1lXS5vdGhlck5hbWU7XG4gICAgaWYgKHNxbEJsb2NrLmpvaW5RdWVyeSAmJiBzcWxCbG9jay5qb2luUXVlcnlbcmVsTmFtZV0pIHtcbiAgICAgIHJldHVybiBgKCR7c3FsQmxvY2suam9pblF1ZXJ5W3JlbE5hbWVdfSkgYXMgXCIke3JlbE5hbWV9XCJgO1xuICAgIH0gZWxzZSB7XG4gICAgICBjb25zdCBleHRyYUFnZyA9IE9iamVjdC5rZXlzKHJlbC5leHRyYXMgfHwge30pLm1hcChcbiAgICAgICAgZXh0cmEgPT4gYCcke2V4dHJhfScsIFwiJHtzcWxCbG9jay50YWJsZU5hbWV9XCIuXCIke2V4dHJhfVwiYFxuICAgICAgKTtcbiAgICAgIGNvbnN0IGt2ID0gW1xuICAgICAgICBgJ2lkJ2AsXG4gICAgICAgIGBcIiR7c3FsQmxvY2sudGFibGVOYW1lfVwiLlwiJHtzcWxCbG9jay5qb2luRmllbGRzW290aGVyTmFtZV19XCJgLFxuICAgICAgXTtcbiAgICAgIGlmIChleHRyYUFnZy5sZW5ndGgpIHtcbiAgICAgICAga3YucHVzaChgJ21ldGEnYCwgYGpzb25iX2J1aWxkX29iamVjdCgke2V4dHJhQWdnLmpvaW4oJywnKX0pYCk7XG4gICAgICB9XG4gICAgICBjb25zdCB3aGVyZSA9XG4gICAgICAgIHNxbEJsb2NrLmpvaW5RdWVyeSAmJiBzcWxCbG9jay5qb2luUXVlcnlbcmVsTmFtZV1cbiAgICAgICAgICA/IHNxbEJsb2NrLmpvaW5RdWVyeVtyZWxOYW1lXVxuICAgICAgICAgIDogYFwiJHtzcWxCbG9jay50YWJsZU5hbWV9XCIuXCIke3NxbEJsb2NrLmpvaW5GaWVsZHNbXG4gICAgICAgICAgICAgIHJlbE5hbWVcbiAgICAgICAgICAgIF19XCIgPSBcIiR7c2NoZW1hLnN0b3JlRGF0YS5zcWwudGFibGVOYW1lfVwiLlwiJHtzY2hlbWEuaWRBdHRyaWJ1dGV9XCJgO1xuICAgICAgcmV0dXJuIGAoXG4gICAgICAgICAgc2VsZWN0IGFycmF5X2FnZyhcbiAgICAgICAgICAgIGpzb25iX2J1aWxkX29iamVjdCgke2t2LmpvaW4oJywgJyl9KVxuICAgICAgICAgIClcbiAgICAgICAgICBmcm9tIFwiJHtzcWxCbG9jay50YWJsZU5hbWV9XCJcbiAgICAgICAgICB3aGVyZSAke3doZXJlfVxuICAgICAgICApIGFzIFwiJHtyZWxOYW1lfVwiYC5yZXBsYWNlKC9cXHMrL2csICcgJyk7XG4gICAgfVxuICB9IGVsc2Uge1xuICAgIHJldHVybiBudWxsO1xuICB9XG59XG5cbmV4cG9ydCBmdW5jdGlvbiBidWxrUXVlcnkoc2NoZW1hOiBNb2RlbFNjaGVtYSk6IFBhcmFtZXRlcml6ZWRRdWVyeSB7XG4gIGxldCB3aGVyZSA9IGB3aGVyZSAke3NjaGVtYS5zdG9yZURhdGEuc3FsXG4gICAgLnRhYmxlTmFtZX0uJHtzY2hlbWEuaWRBdHRyaWJ1dGV9ID0gP2A7XG4gIGlmIChcbiAgICBzY2hlbWEuc3RvcmVEYXRhICYmXG4gICAgc2NoZW1hLnN0b3JlRGF0YS5zcWwgJiZcbiAgICBzY2hlbWEuc3RvcmVEYXRhLnNxbC5idWxrUXVlcnlcbiAgKSB7XG4gICAgd2hlcmUgPSBzY2hlbWEuc3RvcmVEYXRhLnNxbC5idWxrUXVlcnk7XG4gIH0gZWxzZSBpZiAoXG4gICAgc2NoZW1hLnN0b3JlRGF0YSAmJlxuICAgIHNjaGVtYS5zdG9yZURhdGEuc3FsICYmXG4gICAgc2NoZW1hLnN0b3JlRGF0YS5zcWwuc2luZ2xlUXVlcnlcbiAgKSB7XG4gICAgd2hlcmUgPSBzY2hlbWEuc3RvcmVEYXRhLnNxbC5zaW5nbGVRdWVyeTtcbiAgfVxuICBjb25zdCBiYXNlID0gW2BcIiR7c2NoZW1hLnN0b3JlRGF0YS5zcWwudGFibGVOYW1lfVwiLipgXTtcbiAgY29uc3Qgc2lkZXMgPSBPYmplY3Qua2V5cyhzY2hlbWEucmVsYXRpb25zaGlwcylcbiAgICAubWFwKGsgPT4gcmVsYXRpb25GZXRjaChzY2hlbWEsIGspKVxuICAgIC5maWx0ZXIodiA9PiAhIXYpO1xuICByZXR1cm4ge1xuICAgIHF1ZXJ5U3RyaW5nOiBgc2VsZWN0ICR7YmFzZS5jb25jYXQoc2lkZXMpLmpvaW4oJywgJyl9IGZyb20gXCIke3NjaGVtYVxuICAgICAgLnN0b3JlRGF0YS5zcWwudGFibGVOYW1lfVwiICR7d2hlcmV9YC5yZXBsYWNlKC9cXHMrL2csICcgJyksIC8vIHRzbGludDpkaXNhYmxlLWxpbmUgbWF4LWxpbmUtbGVuZ3RoXG4gICAgZmllbGRzOiBbJ2lkJ10sXG4gIH07XG59XG5cbmV4cG9ydCBmdW5jdGlvbiByZWFkUXVlcnkoc2NoZW1hOiBNb2RlbFNjaGVtYSk6IFBhcmFtZXRlcml6ZWRRdWVyeSB7XG4gIGNvbnN0IGJhc2UgPSBbYFwiJHtzY2hlbWEuc3RvcmVEYXRhLnNxbC50YWJsZU5hbWV9XCIuKmBdO1xuICBjb25zdCBzaWRlcyA9IE9iamVjdC5rZXlzKHNjaGVtYS5yZWxhdGlvbnNoaXBzKVxuICAgIC5tYXAoayA9PiByZWxhdGlvbkZldGNoKHNjaGVtYSwgaykpXG4gICAgLmZpbHRlcih2ID0+ICEhdik7XG4gIHJldHVybiB7XG4gICAgcXVlcnlTdHJpbmc6IGBzZWxlY3QgJHtiYXNlLmNvbmNhdChzaWRlcykuam9pbignLCAnKX0gZnJvbSBcIiR7c2NoZW1hXG4gICAgICAuc3RvcmVEYXRhLnNxbC50YWJsZU5hbWV9XCIgd2hlcmUgXCIke3NjaGVtYS5zdG9yZURhdGEuc3FsXG4gICAgICAudGFibGVOYW1lfVwiLlwiJHtzY2hlbWEuaWRBdHRyaWJ1dGV9XCIgPSA/YCwgLy8gdHNsaW50OmRpc2FibGUtbGluZSBtYXgtbGluZS1sZW5ndGhcbiAgICBmaWVsZHM6IFsnaWQnXSxcbiAgfTtcbn1cbiJdfQ==

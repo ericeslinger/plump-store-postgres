@@ -4,36 +4,19 @@ import {
   IndefiniteModelData,
   ModelData,
   ModelSchema,
+  StorageReadRequest,
   ModelReference,
   RelationshipItem,
   TerminalStore,
 } from 'plump';
-import { readQuery, bulkQuery } from './queryString';
+// import { readQuery, bulkQuery } from './queryString';
 import { ParameterizedQuery } from './semiQuery';
 import { writeRelationshipQuery } from './writeRelationshipQuery';
-
-function rearrangeData(type: ModelSchema, data: any): ModelData {
-  const retVal: ModelData = {
-    type: type.name,
-    attributes: {},
-    relationships: {},
-    id: data[type.idAttribute],
-  };
-  for (const attrName in type.attributes) {
-    retVal.attributes[attrName] = data[attrName];
-  }
-  for (const relName in type.relationships) {
-    retVal.relationships[relName] = data[relName] || [];
-  }
-  return retVal;
-}
 
 export class PGStore extends Storage implements TerminalStore {
   public knex: Knex;
   public queryCache: {
     [type: string]: {
-      attributes: ParameterizedQuery;
-      bulkRead: ParameterizedQuery;
       relationships: {
         [relName: string]: ParameterizedQuery;
       };
@@ -59,7 +42,7 @@ export class PGStore extends Storage implements TerminalStore {
           min: 0,
         },
       },
-      opts.sql
+      opts.sql,
     );
     this.knex = Knex(options);
   }
@@ -78,7 +61,7 @@ export class PGStore extends Storage implements TerminalStore {
     return Promise.resolve(
       this.knex
         .raw('select nextval(?::regclass);', `${type}_id_seq`)
-        .then(data => data.rows[0].nextval)
+        .then(data => data.rows[0].nextval),
     );
   }
 
@@ -86,8 +69,6 @@ export class PGStore extends Storage implements TerminalStore {
     return super.addSchema(t).then(() => {
       if (t.schema.storeData && t.schema.storeData.sql) {
         this.queryCache[t.type] = {
-          attributes: readQuery(t.schema),
-          bulkRead: bulkQuery(t.schema),
           relationships: {},
         };
         Object.keys(t.schema.relationships).forEach(relName => {
@@ -99,18 +80,38 @@ export class PGStore extends Storage implements TerminalStore {
       }
     });
   }
-
+  rearrangeData(req: StorageReadRequest, data: any): ModelData {
+    const schema = this.getSchema(req.item.type);
+    const retVal: ModelData = {
+      type: req.item.type,
+      attributes: {},
+      relationships: {},
+      id: data[schema.idAttribute],
+    };
+    for (const attrName in schema.attributes) {
+      retVal.attributes[attrName] = data[attrName];
+    }
+    if (schema.storeData.sql.views[req.view || 'default'].contains) {
+      schema.storeData.sql.views[req.view || 'default'].contains.forEach(
+        relName => (retVal.relationships[relName] = data[relName] || []),
+      );
+    }
+    return retVal;
+  }
   writeAttributes(value: IndefiniteModelData): Promise<ModelData> {
     const updateObject = this.validateInput(value);
     const typeInfo = this.getSchema(value.type);
     return Promise.resolve()
       .then(() => {
         if (updateObject.id === undefined && this.terminal) {
-          return this.knex(typeInfo.storeData.sql.tableName)
+          return this.knex(typeInfo.storeData.sql.views.default.name)
             .insert(updateObject.attributes)
             .returning(typeInfo.idAttribute)
             .then(createdId => {
-              return this.readAttributes({ type: value.type, id: createdId });
+              return this.readAttributes({
+                item: { type: value.type, id: createdId[0] },
+                fields: ['attributes'],
+              });
             });
         } else if (updateObject.id !== undefined) {
           return this.knex(updateObject.type)
@@ -118,8 +119,11 @@ export class PGStore extends Storage implements TerminalStore {
             .update(updateObject.attributes)
             .then(() => {
               return this.readAttributes({
-                type: value.type,
-                id: updateObject.id,
+                item: {
+                  type: value.type,
+                  id: updateObject.id,
+                },
+                fields: ['attributes'],
               });
             });
         } else {
@@ -128,58 +132,39 @@ export class PGStore extends Storage implements TerminalStore {
       })
       .then(result => {
         this.fireWriteUpdate(
-          Object.assign({}, result, { invalidate: ['attributes'] })
+          Object.assign({}, result, { invalidate: ['attributes'] }),
         );
         return result;
       });
   }
 
-  readAttributes(value: ModelReference): Promise<ModelData> {
+  readAttributes(req: StorageReadRequest): Promise<ModelData> {
+    const schema = this.getSchema(req.item.type);
+    const view = schema.storeData.sql.views[req.view || 'default'];
     return Promise.resolve(
-      this.knex
-        .raw(this.queryCache[value.type].attributes.queryString, value.id)
+      this.knex(view.name)
+        .where({ [schema.idAttribute]: req.item.id })
+        .select()
         .then(o => {
-          if (o.rows[0]) {
-            return rearrangeData(this.getSchema(value.type), o.rows[0]);
+          if (o[0]) {
+            return this.rearrangeData(req, o[0]);
           } else {
             return null;
           }
-        })
+        }),
     );
   }
 
-  bulkRead(item: ModelReference) {
-    const schema = this.getSchema(item.type);
-    const query = this.queryCache[item.type].bulkRead;
-    return Promise.resolve(
-      this.knex.raw(query.queryString, item.id).then(o => {
-        if (o.rows[0]) {
-          const arrangedArray = o.rows.map(row => rearrangeData(schema, row));
-          const rootItem = arrangedArray.filter(it => it.id === item.id)[0];
-          rootItem.included = arrangedArray.filter(it => it.id !== item.id);
-          return rootItem;
-        } else {
-          return null;
-        }
-      })
-    );
-  }
-
-  readRelationship(
-    value: ModelReference,
-    relRefName: string
-  ): Promise<ModelData> {
+  readRelationship(req: StorageReadRequest): Promise<ModelData> {
     const relName =
-      relRefName.indexOf('relationships.') === 0
-        ? relRefName.split('.')[1]
-        : relRefName;
-    const schema = this.getSchema(value.type);
+      req.rel.indexOf('relationships.') === 0 ? req.rel.split('.')[1] : req.rel;
+    const schema = this.getSchema(req.item.type);
     const rel = schema.relationships[relName].type;
     const otherRelName = rel.sides[relName].otherName;
     const sqlData = rel.storeData.sql;
-    const selectBase = `"${sqlData.tableName}"."${sqlData.joinFields[
-      otherRelName
-    ]}" as id`;
+    const selectBase = `"${sqlData.tableName}"."${
+      sqlData.joinFields[otherRelName]
+    }" as id`;
     let selectExtras = '';
     if (rel.extras) {
       selectExtras = `, jsonb_build_object(${Object.keys(rel.extras)
@@ -187,32 +172,27 @@ export class PGStore extends Storage implements TerminalStore {
         .join(', ')}) as meta`; // tslint:disable-line max-line-length
     }
 
-    const where =
-      sqlData.where === undefined
-        ? { [sqlData.joinFields[relName]]: value.id }
-        : this.knex.raw(sqlData.where[relName], value.id);
-
     return Promise.resolve(
       this.knex(sqlData.tableName)
         .as(relName)
-        .where(where)
+        .where({ [sqlData.joinFields[req.rel]]: req.item.id })
         .select(this.knex.raw(`${selectBase}${selectExtras}`))
         .then(l => {
           return {
-            type: value.type,
-            id: value.id,
+            type: req.item.type,
+            id: req.item.id,
             relationships: {
               [relName]: l,
             },
           };
-        })
+        }),
     );
   }
 
   delete(value: ModelReference) {
     const schema = this.getSchema(value.type);
     return Promise.resolve(
-      this.knex(schema.storeData.sql.tableName)
+      this.knex(schema.storeData.sql.views.default.name)
         .where({ [schema.idAttribute]: value.id })
         .delete()
         .then(o => {
@@ -222,14 +202,14 @@ export class PGStore extends Storage implements TerminalStore {
             invalidate: ['attributes', 'relationships'],
           });
           return o;
-        })
+        }),
     );
   }
 
   writeRelationshipItem(
     value: ModelReference,
     relName: string,
-    child: RelationshipItem
+    child: RelationshipItem,
   ) {
     const subQuery = this.queryCache[value.type].relationships[relName];
     const schema = this.getSchema(value.type);
@@ -246,13 +226,13 @@ export class PGStore extends Storage implements TerminalStore {
             } else {
               return child.meta[f];
             }
-          })
+          }),
         )
         .then(() => {
           this.fireWriteUpdate(
             Object.assign({}, value, {
               invalidate: [`relationships.${relName}`],
-            })
+            }),
           );
           this.fireWriteUpdate({
             id: child.id,
@@ -260,14 +240,14 @@ export class PGStore extends Storage implements TerminalStore {
             invalidate: [`relationships.${childData.otherName}`],
           });
           return null;
-        })
+        }),
     );
   }
 
   deleteRelationshipItem(
     value: ModelReference,
     relName: string,
-    child: RelationshipItem
+    child: RelationshipItem,
   ) {
     const schema = this.getSchema(value.type);
     const rel = schema.relationships[relName].type;
@@ -285,7 +265,7 @@ export class PGStore extends Storage implements TerminalStore {
           this.fireWriteUpdate(
             Object.assign({}, value, {
               invalidate: [`relationships.${relName}`],
-            })
+            }),
           );
           this.fireWriteUpdate({
             id: child.id,
@@ -293,7 +273,7 @@ export class PGStore extends Storage implements TerminalStore {
             invalidate: [`relationships.${childData.otherName}`],
           });
           return null;
-        })
+        }),
     );
   }
 
@@ -302,7 +282,7 @@ export class PGStore extends Storage implements TerminalStore {
       this.knex(type)
         .where(q)
         .select('id')
-        .then(r => r.map(v => ({ type: type, id: v.id })))
+        .then(r => r.map(v => ({ type: type, id: v.id }))),
     );
   }
 }
