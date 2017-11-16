@@ -1,5 +1,5 @@
 /// <reference types="knex" />
-import * as Knex from 'knex';
+import Knex from 'knex';
 import { Storage, IndefiniteModelData, ModelData, ModelSchema, StorageReadRequest, ModelReference, RelationshipItem, TerminalStore } from 'plump';
 import { ParameterizedQuery } from './semiQuery';
 export declare class PGStore extends Storage implements TerminalStore {

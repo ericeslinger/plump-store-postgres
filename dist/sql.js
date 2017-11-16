@@ -11,13 +11,13 @@ var _get = function get(object, property, receiver) { if (object === null) objec
 
 var _knex = require('knex');
 
-var Knex = _interopRequireWildcard(_knex);
+var _knex2 = _interopRequireDefault(_knex);
 
 var _plump = require('plump');
 
 var _writeRelationshipQuery = require('./writeRelationshipQuery');
 
-function _interopRequireWildcard(obj) { if (obj && obj.__esModule) { return obj; } else { var newObj = {}; if (obj != null) { for (var key in obj) { if (Object.prototype.hasOwnProperty.call(obj, key)) newObj[key] = obj[key]; } } newObj.default = obj; return newObj; } }
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
 
@@ -53,7 +53,7 @@ var PGStore = exports.PGStore = function (_Storage) {
                 min: 0
             }
         }, opts.sql);
-        _this.knex = Knex(options);
+        _this.knex = (0, _knex2.default)(options);
         return _this;
     }
     /*
