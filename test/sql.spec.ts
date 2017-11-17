@@ -3,7 +3,6 @@
 
 import * as pg from 'pg';
 import * as chai from 'chai';
-import mergeOptions from 'merge-options';
 
 import { PGStore } from '../dist/index';
 import { TestType } from './testType';

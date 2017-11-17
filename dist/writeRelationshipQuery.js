@@ -7,12 +7,13 @@ exports.writeRelationshipQuery = writeRelationshipQuery;
 function writeRelationshipQuery(schema, relName) {
     var rel = schema.relationships[relName].type;
     var otherRelName = rel.sides[relName].otherName;
+    var writeTable = rel.storeData.sql.writeView || rel.storeData.sql.tableName;
     if (rel.storeData && rel.storeData.sql) {
         var sqlData = rel.storeData.sql;
         if (rel.extras) {
             var extraArray = Object.keys(rel.extras).concat();
             var insertArray = [sqlData.joinFields[otherRelName], sqlData.joinFields[relName]].concat(extraArray);
-            var insertString = 'insert into "' + sqlData.tableName + '" (' + insertArray.join(', ') + ')\n      values (' + insertArray.map(function () {
+            var insertString = 'insert into "' + writeTable + '" (' + insertArray.join(', ') + ')\n      values (' + insertArray.map(function () {
                 return '?';
             }).join(', ') + ')\n      on conflict ("' + sqlData.joinFields[otherRelName] + '", "' + sqlData.joinFields[relName] + '") ';
             return {
@@ -23,7 +24,7 @@ function writeRelationshipQuery(schema, relName) {
             };
         } else {
             var _insertArray = [sqlData.joinFields[otherRelName], sqlData.joinFields[relName]];
-            var _insertString = 'insert into "' + sqlData.tableName + '" (' + _insertArray.join(', ') + ')\n      values (' + _insertArray.map(function () {
+            var _insertString = 'insert into "' + writeTable + '" (' + _insertArray.join(', ') + ')\n      values (' + _insertArray.map(function () {
                 return '?';
             }).join(', ') + ')\n      on conflict ("' + sqlData.joinFields[otherRelName] + '", "' + sqlData.joinFields[relName] + '") ';
             return {
