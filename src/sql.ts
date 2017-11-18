@@ -101,6 +101,17 @@ export class PGStore extends Storage implements TerminalStore {
   writeAttributes(value: IndefiniteModelData): Promise<ModelData> {
     const updateObject = this.validateInput(value);
     const typeInfo = this.getSchema(value.type);
+    Object.keys(typeInfo.attributes)
+      .filter(
+        key =>
+          typeInfo.attributes[key].type === 'object' &&
+          updateObject.attributes[key],
+      )
+      .forEach(objKey => {
+        updateObject.attributes[objKey] = JSON.stringify(
+          updateObject.attributes[objKey],
+        );
+      });
     return Promise.resolve()
       .then(() => {
         if (updateObject.id === undefined && this.terminal) {

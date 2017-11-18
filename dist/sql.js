@@ -121,6 +121,11 @@ var PGStore = exports.PGStore = function (_Storage) {
 
             var updateObject = this.validateInput(value);
             var typeInfo = this.getSchema(value.type);
+            Object.keys(typeInfo.attributes).filter(function (key) {
+                return typeInfo.attributes[key].type === 'object' && updateObject.attributes[key];
+            }).forEach(function (objKey) {
+                updateObject.attributes[objKey] = JSON.stringify(updateObject.attributes[objKey]);
+            });
             return Promise.resolve().then(function () {
                 if (updateObject.id === undefined && _this3.terminal) {
                     return _this3.knex(typeInfo.storeData.sql.views.default.name).insert(updateObject.attributes).returning(typeInfo.idAttribute).then(function (createdId) {
