@@ -1,6 +1,6 @@
 {
   "name": "plump-store-postgres",
-  "version": "0.25.2",
+  "version": "0.25.3",
   "description": "Postgres adapter for Plump",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -11,12 +11,7 @@
     "type": "git",
     "url": "git+https://github.com/plumpstack/plump-store-postgres.git"
   },
-  "keywords": [
-    "typescript",
-    "orm",
-    "datastore",
-    "activerecord"
-  ],
+  "keywords": ["typescript", "orm", "datastore", "activerecord"],
   "author": "Eric Eslinger <eric.eslinger@gmail.com>",
   "license": "MIT",
   "bugs": {
