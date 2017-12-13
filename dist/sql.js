@@ -244,7 +244,7 @@ var PGStore = exports.PGStore = function (_Storage) {
             var otherRelName = rel.sides[relName].otherName;
             var sqlData = rel.storeData.sql;
             var childData = schema.relationships[relName].type.sides[relName];
-            return Promise.resolve(this.knex(sqlData.tableName).where((_knex$where3 = {}, _defineProperty(_knex$where3, sqlData.joinFields[otherRelName], child.id), _defineProperty(_knex$where3, sqlData.joinFields[relName], value.id), _knex$where3)).delete().then(function () {
+            return Promise.resolve(this.knex(sqlData.writeView || sqlData.tableName).where((_knex$where3 = {}, _defineProperty(_knex$where3, sqlData.joinFields[otherRelName], child.id), _defineProperty(_knex$where3, sqlData.joinFields[relName], value.id), _knex$where3)).delete().then(function () {
                 _this7.fireWriteUpdate(Object.assign({}, value, {
                     invalidate: ['relationships.' + relName]
                 }));
