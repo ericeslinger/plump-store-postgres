@@ -266,7 +266,7 @@ export class PGStore extends Storage implements TerminalStore {
     const sqlData = rel.storeData.sql;
     const childData = schema.relationships[relName].type.sides[relName];
     return Promise.resolve(
-      this.knex(sqlData.tableName)
+      this.knex(sqlData.writeView || sqlData.tableName)
         .where({
           [sqlData.joinFields[otherRelName]]: child.id,
           [sqlData.joinFields[relName]]: value.id,
